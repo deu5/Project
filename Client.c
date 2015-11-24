@@ -78,7 +78,43 @@ void *send_msg(void * arg)
 		if(wOk == 0) {
 			sleep(1);
 		}
-		fgets(msg, BUF_SIZE, stdin);
+		 fgets(msg, BUF_SIZE, stdin);
+		 
+		if(!strcmp(msg, "/menu\n")) { // 메뉴
+			
+			printf("\n");
+			printf("[MENU]\n\n");
+			printf("1. /menu -> 메뉴를 출력합니다. \n");
+			printf("2. /whisper -> 원하는 사용자에게 귓속말을 보냅니다.\n");
+			printf("\n[END MENU] \n\n");
+
+		} 
+		else if(!strcmp(msg, "/whisper\n")) { // 귓속말 기능
+			char who[NAME_SIZE];
+			char wmsg[BUF_SIZE] = {NULL};
+
+			
+			printf("<귓속말> (유저이름) (메시지) : ");
+			scanf("%s %[^\n]", who, wmsg);
+
+			write(sock, "whisper : cl->sr", BUF_SIZE);
+			// 서버에 귓속말사용 신호를 보낸다.		
+
+			write(sock, who, NAME_SIZE);
+			// 사용자 아이디를 보낸다.			
+
+			strcpy(t_msg, "\n");
+			sprintf(t_name_msg,"[(귓속말)%s] %s", name, t_msg); // 이름 , 내 메시지 연결
+			sprintf(name_msg,"[(귓속말)%s] %s", name, wmsg); // 이름 , 보내는 사람 id 연결
+
+			name_msg[strlen(name_msg)] = '\n';
+
+			if(strcmp(name_msg, t_name_msg) != 0) 
+			   write(sock, name_msg, BUF_SIZE);
+			// 아무것도 입력받지 않았을때는 출력 X
+			// 메시지 보내기
+
+		}
 		else 
 		{	
 			
