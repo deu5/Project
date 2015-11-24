@@ -15,6 +15,9 @@
 void * handle_clnt(void * arg);
 void send_msg(char * msg, int len);
 void error_handling(char * msg);
+void save_msg(char *msg);
+char *between_msg(char *msg);
+char *replace_string(char *in, char *from, char *to);
 
 int client_count=0;
 int client_socks[MAX_CLNT];
@@ -47,9 +50,9 @@ int main(int argc, char *argv[])
         memset(&server_address, 0, sizeof(server_address));
         // 서버IP 를 0으로 서버IP SIZE 만큼 초기화
         server_address.sin_family=AF_INET;
-        // IPv4 설정
+        // IPv4 프로토콜 사용
         server_address.sin_addr.s_addr=htonl(INADDR_ANY);
-        //
+        // 32bit IPv4 주소
         server_address.sin_port=htons(atoi(argv[1]));
         // 포트 설정
 
@@ -115,27 +118,69 @@ void * handle_clnt(void * arg)
         int i;
 	int client_sock=*((int*)arg);
         int str_len=0;
-        
-	
-	
-        char msg[BUF_SIZE] = {NULL}; // 메세지 변수
-      
-	
-		
+        int file_size = 0;
+        int where=0;
+
+	const char sig_whisper[BUF_SIZE] = {"whisper : cl->sr"}; // 귓속말
+ 	
         while((str_len=read(client_sock, msg, BUF_SIZE))!=0)
         // read ( 파일디스크립터,읽어들일 버퍼,버퍼크기);
         // client_sock 읽는다.
-        {	  
+        {	                
+                if(!strcmp(msg, sig_whisper)) { // 귓속말 일때
+                        int j=0;
+                        int noCli = 0;
+                        int mGo = 0;
+                        char tmpName[NAME_SIZE]= {NULL};
+                        char msg[NAME_SIZE]= {NULL};
+
+                        read(client_sock, tmpName, NAME_SIZE);
+			// 귓속말 대상의 이름을 읽어온다.
+
+                        pthread_mutex_lock(&mutx);
+			// 다른 쓰레드 접근 제한
+
+                        for(j=0; j<client_count; j++) {
+                                if(!strcmp(tmpName, client_names[j]) ) {
+                                        noCli = 0;
+                                        mGo = j; // 보낼 소켓 번호를 저장
+                                        break;
+                                }
+                                else if(j == client_count - 1) {
+                                        noCli = 1; // 그런 사용자가 없을 때 표시
+                                        break;
+                                }
+                        }
+
+                        pthread_mutex_unlock(&mutx);
+			// 다른 쓰레드 접근 제한 해제 
+
+                        read(client_sock, msg, BUF_SIZE);
+			// 귓속말할 메세지를 읽어온다.
+
+                        if(noCli == 1) {
+                                write(client_sock, "귓속말 대상 사용자가 존재하지 않습니다.", BUF_SIZE);
+                        } // 귓속말 대상 사용자가 없을 때
+                        else {
+                                write(client_socks[j], msg, BUF_SIZE);
+                        } // 귓속말 대상 사용자가 존재할 때
+
+                }
+
+		else
+                {
 			int j=0;
                         int noCli = 0;
                         int mGo = 0;
                         char tmpName[NAME_SIZE]= {NULL};
                         char tmpMsg[NAME_SIZE]= {NULL};
-
+			
 			send_msg(msg, str_len); // 메세지 전송 (이름+메세지)
                         read(client_sock, msg, BUF_SIZE); // 메세지 내용만 읽는다.
 			read(client_sock, msg, BUF_SIZE); // 클라이언트 이름만 읽는다.			
                         printf("\n");
+			
+                }
         }
 
         pthread_mutex_lock(&mutx);
@@ -166,7 +211,7 @@ void send_msg(char *msg, int len)   // send to all
 
         pthread_mutex_lock(&mutx);
 	// 다른 쓰레드 접근 제한
-
+   
         for(i=0; i<client_count; i++)
         write(client_socks[i], msg, BUF_SIZE);
 	// 클라이언트에게 메세지 전송
@@ -180,3 +225,7 @@ void error_handling(char * msg)
         fputc('\n', stderr);
         exit(1);
 }
+
+
+
+
