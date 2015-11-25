@@ -116,7 +116,10 @@ void * handle_clnt(void * arg)
         int i;
 	int client_sock=*((int*)arg);
         int str_len=0;	
+	int file_size = 0;
 	
+
+	const char single_file[BUF_SIZE] = {"file : cl->sr"}; // 1:1 파일전송
 	const char sig_whisper[BUF_SIZE] = {"whisper : cl->sr"}; // 귓속말    
         char msg[BUF_SIZE] = {NULL}; // 메세지 변수
        
@@ -125,8 +128,82 @@ void * handle_clnt(void * arg)
         // read ( 파일디스크립터,읽어들일 버퍼,버퍼크기);
         // client_sock 읽는다.
         {	
-  
-                if(!strcmp(msg, sig_whisper)) { // 귓속말 일때
+			if(!strcmp(msg, single_file)) // 1:1 파일전송 일때
+              		{
+                        int j;
+                        int noCli = 0; // 클라이언트 유무 확인 변수
+                        int fileGo = NULL; // 소켓 번호 변수
+                        char tmpName[NAME_SIZE]= {NULL}; // 클라이언트 이름을 담을 변수
+
+                        read(client_sock, tmpName, NAME_SIZE);
+                        // read ( 파일디스크립터,읽어들일 버퍼,버퍼크기);
+
+                        pthread_mutex_lock(&mutx);
+                        // 다른 쓰레드 접근 제한
+
+
+			//해당 사용자가 존재하는지 찾기
+                        for(j=0; j<client_count; j++) {
+
+                                if(!strcmp(tmpName, client_names[j]) ) {
+                                        noCli = 0;
+                                        fileGo = j; // 보낼 소켓 번호를 저장
+                                        break;
+                                }
+                                else if(j == client_count - 1) {
+                                        noCli = 1; // 그런 사용자가 없을 때 표시
+                                        break;
+                                }
+                        }
+
+                        if(noCli == 1) {
+                                write(client_sock, "[사용자가 없습니다.]", BUF_SIZE);
+                                pthread_mutex_unlock(&mutx);
+                                // 다른 쓰레드 접근 가능
+                                continue;
+                        }
+
+
+                        else if(noCli == 0) {
+                                write(client_sock, "[파일 전송을 진행합니다.]", BUF_SIZE);
+                        }
+                        //해당 사용자가 존재하는지 찾기
+
+
+
+
+                        write(client_socks[fileGo], "file : sr->cl", BUF_SIZE);
+                        // 데이터를 보낸다는 신호를 보낸다.
+
+                        read(client_sock, &file_size, sizeof(int));
+			// 클라이언트로 부터 파일정보를 읽는다.
+                        printf("File size %d Byte\n", file_size);
+			// 파일 사이즈 출력
+                        write(client_socks[fileGo], &file_size, sizeof(int));
+                        // 파일 정보를 파일을 받을 클라이언트에게 보낸다.
+
+
+                        while(1) {
+                                read(client_sock, file_msg, BUF_SIZE);
+                                if(!strcmp(file_msg, Fmsg_end))
+                                break;
+                                write(client_socks[fileGo], file_msg, BUF_SIZE);
+                        } // 파일 전송
+
+
+                        write(client_socks[fileGo], "FileEnd_sr->cl", BUF_SIZE);
+			// 파일의 끝을 알려준다.
+
+                        pthread_mutex_unlock(&mutx);
+			// 다른 쓰레드 접근 제한 해제
+                        printf("파일 전송 완료\n");
+			// 파일 전송 완료 메세지 출력
+                }  
+                
+
+
+
+			else if(!strcmp(msg, sig_whisper)) { // 귓속말 일때
                         int j=0;
                         int noCli = 0;
                         int mGo = 0;
@@ -165,7 +242,6 @@ void * handle_clnt(void * arg)
                         } // 귓속말 대상 사용자가 존재할 때
 
                 }
-
 
                 else
                 {			
