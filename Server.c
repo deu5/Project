@@ -8,7 +8,6 @@
 #include <pthread.h>
 #include <time.h>
 
-
 #define BUF_SIZE 128
 #define MAX_CLNT 4
 #define NAME_SIZE 20
@@ -16,12 +15,15 @@
 void * handle_clnt(void * arg);
 void send_msg(char * msg, int len);
 void error_handling(char * msg);
+void save_msg(char *msg);
+char *between_msg(char *msg);
+char *replace_string(char *in, char *from, char *to);
 
 int client_count=0;
 int client_socks[MAX_CLNT];
 char client_name[NAME_SIZE]= {NULL};
 char client_names[MAX_CLNT][NAME_SIZE]= {NULL};
-
+char game_text[BUF_SIZE]={"text\n"};
 
 pthread_mutex_t mutx;
 
@@ -115,24 +117,29 @@ void * handle_clnt(void * arg)
 {
         int i;
 	int client_sock=*((int*)arg);
-        int str_len=0;	
-	int file_size = 0;
+        int str_len=0;
+        int file_size = 0;
+        int where=0;
 	
-
 	const char single_file[BUF_SIZE] = {"file : cl->sr"}; // 1:1 파일전송
 	const char single_file_all[BUF_SIZE] = {"file : cl->sr_all"}; // 1:N 파일전송
 	const char Fmsg_end[BUF_SIZE] = {"FileEnd_cl->sr"}; // 파일의 끝
-	const char sig_whisper[BUF_SIZE] = {"whisper : cl->sr"}; // 귓속말 
-	const char exit[BUF_SIZE] = { "exit : cl->sr" }; // 클라이언트 종료 확인 메세지   
+	const char sig_whisper[BUF_SIZE] = {"whisper : cl->sr"}; // 귓속말
+        const char game[BUF_SIZE] = {"game : cl->sr"}; // 게임
+	const char exit[BUF_SIZE] = { "exit : cl->sr" }; // 클라이언트 종료 확인 메세지
+	
         char msg[BUF_SIZE] = {NULL}; // 메세지 변수
-      	char file_msg[BUF_SIZE] = {NULL}; // 파일메세지 변수
+        char file_msg[BUF_SIZE] = {NULL}; // 파일메세지 변수
+	
+
+	char game_text_end[BUF_SIZE]="";	
 	
         while((str_len=read(client_sock, msg, BUF_SIZE))!=0)
         // read ( 파일디스크립터,읽어들일 버퍼,버퍼크기);
         // client_sock 읽는다.
         {	
-			if(!strcmp(msg, single_file)) // 1:1 파일전송 일때
-              		{
+                if(!strcmp(msg, single_file)) // 1:1 파일전송 일때
+                {
                         int j;
                         int noCli = 0; // 클라이언트 유무 확인 변수
                         int fileGo = NULL; // 소켓 번호 변수
@@ -201,9 +208,10 @@ void * handle_clnt(void * arg)
 			// 다른 쓰레드 접근 제한 해제
                         printf("파일 전송 완료\n");
 			// 파일 전송 완료 메세지 출력
-                }  
-                
-		       else if(!strcmp(msg, single_file_all)) { // 1:N 파일 전송 일때
+                }
+
+
+                else if(!strcmp(msg, single_file_all)) { // 1:N 파일 전송 일때
 
                         pthread_mutex_lock(&mutx); 
                         for(i=0; i<client_count; i++) {
@@ -247,8 +255,7 @@ void * handle_clnt(void * arg)
                         printf("파일 전송 완료\n");
                 }
 
-
-			else if(!strcmp(msg, sig_whisper)) { // 귓속말 일때
+                else if(!strcmp(msg, sig_whisper)) { // 귓속말 일때
                         int j=0;
                         int noCli = 0;
                         int mGo = 0;
@@ -282,29 +289,84 @@ void * handle_clnt(void * arg)
                         if(noCli == 1) {
                                 write(client_sock, "귓속말 대상 사용자가 존재하지 않습니다.", BUF_SIZE);
                         } // 귓속말 대상 사용자가 없을 때
-                        else {
-                                write(client_socks[j], msg, BUF_SIZE);
+                        else {                                
+				char whisper_save[BUF_SIZE]="";
+				write(client_socks[j], msg, BUF_SIZE);
+				strcpy(whisper_save,tmpName);
+				strcat(whisper_save,"에게 ");
+				strcat(whisper_save,msg);
+				save_msg(whisper_save);
                         } // 귓속말 대상 사용자가 존재할 때
 
                 }
 
-			else if (!strcmp(msg, exit)) // 클라이언트가 접속을 종료했을 때
-			{
-			read(client_sock, msg, BUF_SIZE);
- 			pthread_mutex_lock(&mutx);
-                        char msg_exit[BUF_SIZE]="";
-			sprintf(msg_exit,"%s 나감\n", msg, msg_exit);
-			pthread_mutex_unlock(&mutx);
-                        send_msg(msg_exit, str_len);
 
-			} 
-		
-                else
+		else if(!strcmp(msg, game)) // 게임 일때
                 {			
+			char game_start[BUF_SIZE]="게임시작\n";
+			                        
+			send_msg(game_start,BUF_SIZE);
+			// 게임시작 메세지를 클라이언트에게 보낸다.
+
+			read(client_sock, msg, BUF_SIZE);
+			// 게임 텍스트를 클라이언트에게 받는다.
+
+			strcpy(game_text, msg);
+			strcat(game_text,"\n");
+
+			int b = strlen(game_text);
+			// 게임 텍스트 길이 값
+
+			send_msg(game_text, b);
+			// 게임 텍스트를 클라이언트에게 전송
+						
+                }
+
+
+		else if (!strcmp(msg, exit)) // 클라이언트가 접속을 종료했을 때
+		{
+			char msg_exit[BUF_SIZE]="";
+			
+			read(client_sock, msg, BUF_SIZE);
+			// 클라이언트 아이디 값을 읽는다.
+
+ 			pthread_mutex_lock(&mutx);
+			// 다른 쓰레드 접근 제한                        
+			sprintf(msg_exit,"%s 님이 퇴장하셨습니다.\n", msg);
+			pthread_mutex_unlock(&mutx); 
+			//다른 쓰레드 접근 제한 해제
+ 
+                        send_msg(msg_exit, str_len);
+			// 클라이언트에게 사용자 퇴장 메세지 전송
+			
+			printf("%s",msg_exit);
+			// 퇴장 메세지 출력
+
+		} 
+
+                else
+                {
+			int j=0;
+                        int noCli = 0;
+                        int mGo = 0;
+                        char tmpName[NAME_SIZE]= {NULL};
+                        char tmpMsg[NAME_SIZE]= {NULL};
+
 			send_msg(msg, str_len); // 메세지 전송 (이름+메세지)
-                        read(client_sock, msg, BUF_SIZE); // 메세지 내용만 읽는다.
-			read(client_sock, msg, BUF_SIZE); // 클라이언트 이름만 읽는다.			
-                        printf("\n");
+
+                        read(client_sock, msg, BUF_SIZE); //클라이언트 메세지 읽는다.
+			strcpy(tmpMsg, msg);
+			
+                        read(client_sock, msg, BUF_SIZE); //클라이언트 이름을 읽는다.
+			strcpy(tmpName, msg);			
+
+			
+                        if(strcmp(tmpMsg,game_text)==0) // 누가 1등 게임종료
+			{
+
+			sprintf(game_text_end,"%s가 1등하셨습니다.\n", tmpName);
+			send_msg(game_text_end,BUF_SIZE);  			
+			}
 			
                 }
         }
@@ -331,12 +393,107 @@ void * handle_clnt(void * arg)
 	// 소켓 종료
         return NULL;
 }
+void save_msg(char *msg)
+{
+        int month,day,hour,min;
+       
+  	char filepath[100]="/ftp/";
+        char filename[100];
+
+        struct tm *today;
+        time_t the_time;
+        time(&the_time);
+        today = localtime(&the_time);
+
+        month=today->tm_mon+1;
+        day=today->tm_mday;
+  	hour=today->tm_hour;
+   	min=today->tm_min;
+
+        sprintf(filename,"%d월%d일.txt",month,day);   
+   	strcat(filepath,filename);
+          
+        FILE *out;
+        out = fopen(filepath, "a");
+        fprintf(out, "[%d시 %d분] : %s",hour,min,msg);
+        fclose(out);
+}
+void error_handling(char * msg)
+{
+        fputs(msg, stderr);
+        fputc('\n', stderr);
+        exit(1);
+}
+char *between_msg(char *msg)
+{
+   char *output;
+        
+   output = replace_string(msg, "병신", "**");
+   output = replace_string(msg, "븅신", "**");
+   output = replace_string(msg, "호구", "**");
+   output = replace_string(msg, "시발", "**");
+   output = replace_string(msg, "니미", "**");
+   output = replace_string(msg, "엠창", "**");
+   output = replace_string(msg, "뻐큐", "**");
+   output = replace_string(msg, "지랄", "**");
+   output = replace_string(msg, "염병", "**");
+   output = replace_string(msg, "좆까", "**");
+   output = replace_string(msg, "조까", "**");
+   output = replace_string(msg, "새끼", "**");
+   output = replace_string(msg, "시발놈", "***");
+   output = replace_string(msg, "장애", "**");   
+   
+   return output;
+}
+char *replace_string(char *in, char *from, char *to)
+{ 
+        char *rp;
+        char *fp;
+        char *sp;
+        char *wp;
+        int from_len = 0;
+
+        wp = in;
+        from_len = strlen(from);
+
+        if (!from_len)
+	return in;
+
+        if (from_len < strlen(to))
+	return in;
+
+        for (rp = in; *rp; rp++)
+	{
+                sp = rp;
+                for (fp = from; *fp; fp++, rp++)
+		{
+                        if (*rp!=*fp)
+			break;
+                }
+                if(*fp)
+		{
+		 rp = sp;
+		 *wp++ = *rp;
+		}
+                else
+		{
+                 --rp;
+                 for (fp = to; *fp; fp++) *wp++ = *fp;
+                }
+        }
+        *wp = '\0';
+        return in;
+}
 void send_msg(char *msg, int len)   // send to all
 {
         int i,j;
 
         pthread_mutex_lock(&mutx);
 	// 다른 쓰레드 접근 제한
+        save_msg(msg);
+	// 메세지 저장 함수
+        msg = between_msg(msg);
+	// 메세지 필터링 함수
 
         for(i=0; i<client_count; i++)
         write(client_socks[i], msg, BUF_SIZE);
@@ -344,10 +501,4 @@ void send_msg(char *msg, int len)   // send to all
 
         pthread_mutex_unlock(&mutx);
 	// 다른 쓰레드 접근 제한 해제
-}
-void error_handling(char * msg)
-{
-        fputs(msg, stderr);
-        fputc('\n', stderr);
-        exit(1);
 }
