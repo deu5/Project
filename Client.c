@@ -1,106 +1,106 @@
- #include <stdio.h> 
- #include <stdlib.h> 
- #include <unistd.h>  
- #include <string.h> 
- #include <arpa/inet.h> 
- #include <sys/socket.h> 
- #include <pthread.h> 
- 	 
- #define BUF_SIZE 128 
- #define NAME_SIZE 20 
- #define NOTSET 0 
- #define EXIST 1 
- #define NOTEXIST 2 
- 	 
- void * send_msg(void * arg); 
- void * recv_msg(void * arg); 
- void error_handling(char * msg); 
- 	 
- char name[NAME_SIZE]= {NULL}; 
- char msg[BUF_SIZE] = {NULL}; 
- int cli_exist = NOTSET; 
- int setFName = 0; 
- int wOk = 1; 
- 	 
- int main(int argc, char *argv[]) 
- { 
- 	int sock; 
- 	struct sockaddr_in server_address; 
- 	pthread_t send_thread, receive_thread; 
- 	void * thread_return; 
- 	if(argc!=4) { 
- 		printf("%s <IP> <port> <name> 로 입력하시오.\n", argv[0]); 
- 		exit(1); 
- 	}	 
- 
- 
- 	sprintf(name, "%s", argv[3]); 
- 	sock=socket(PF_INET, SOCK_STREAM, 0); 
- 	 
- 	memset(&server_address, 0, sizeof(server_address)); 
- 	// server_address 를 모두 0으로 초기화 
- 	server_address.sin_family=AF_INET; 
- 	// IPv4 프로토콜 사용 
- 	server_address.sin_addr.s_addr=inet_addr(argv[1]); 
- 	// 32bit IPv4 주소 
- 	server_address.sin_port=htons(atoi(argv[2])); 
- 	// 포트설정 
- 	   
- 	if(connect(sock, (struct sockaddr*)&server_address, sizeof(server_address))==-1)// 연결실패시 
- 	error_handling("connect() error"); 
- 
- 
- 	write(sock, name, NAME_SIZE); 
- 	// 이름을 서버로 전송 
- 
- 
- 	printf("\n\n"); 
- 	printf("서버에 연결되었습니다.\n"); 
- 
- 
- 	pthread_create(&send_thread, NULL, send_msg, (void*)&sock); // 쓰레드(send_thread) 생성 
- 	pthread_create(&receive_thread, NULL, recv_msg, (void*)&sock); // 쓰레드(receive_thread) 생성 
- 	pthread_join(send_thread, &thread_return);  
- 	pthread_join(receive_thread, &thread_return);  
- 	close(sock); // 소켓 종료  
- 	return 0; 
- } 
- 	 
- void *send_msg(void * arg)  
- { 
- 	int sock=*((int*)arg); 
+#include <stdio.h>
+#include <stdlib.h>
+#include <unistd.h> 
+#include <string.h>
+#include <arpa/inet.h>
+#include <sys/socket.h>
+#include <pthread.h>
+	
+#define BUF_SIZE 128
+#define NAME_SIZE 20
+#define NOTSET 0
+#define EXIST 1
+#define NOTEXIST 2
+	
+void * send_msg(void * arg);
+void * recv_msg(void * arg);
+void error_handling(char * msg);
+	
+char name[NAME_SIZE]= {NULL};
+char msg[BUF_SIZE] = {NULL};
+int cli_exist = NOTSET;
+int setFName = 0;
+int wOk = 1;
+	
+
+//pthread_mutex_t mutx;
+
+
+int main(int argc, char *argv[])
+{
+	int sock;
+	struct sockaddr_in server_address;
+	pthread_t send_thread, receive_thread;
+	void * thread_return;
+	if(argc!=4) {
+		printf("%s <IP> <port> <name> 로 입력하시오.\n", argv[0]);
+		exit(1);
+	}	
+
+	sprintf(name, "%s", argv[3]);
+	sock=socket(PF_INET, SOCK_STREAM, 0);
+	
+	memset(&server_address, 0, sizeof(server_address));
+	// server_address 를 모두 0으로 초기화
+	server_address.sin_family=AF_INET;
+	// IPv4 프로토콜 사용
+	server_address.sin_addr.s_addr=inet_addr(argv[1]);
+	// 32bit IPv4 주소
+	server_address.sin_port=htons(atoi(argv[2]));
+	// 포트설정
+	  
+	if(connect(sock, (struct sockaddr*)&server_address, sizeof(server_address))==-1)// 연결실패시
+	error_handling("connect() error");
+
+	write(sock, name, NAME_SIZE);
+	// 이름을 서버로 전송
+
+	printf("\n\n");
+	printf("연결되었습니다.\n");
+	printf("[도움말] -> /menu\n");
+
+	pthread_create(&send_thread, NULL, send_msg, (void*)&sock); // 쓰레드(send_thread) 생성
+	pthread_create(&receive_thread, NULL, recv_msg, (void*)&sock); // 쓰레드(receive_thread) 생성
+	pthread_join(send_thread, &thread_return); 
+	pthread_join(receive_thread, &thread_return); 
+	close(sock); // 소켓 종료 
+	return 0;
+}
+	
+void *send_msg(void * arg) 
+{
+	int sock=*((int*)arg);
 	int Flength = 0;
 	int i=0;
 	int file_size = 0;
-	int fEnd = 0; 
- 	char name_msg[NAME_SIZE+BUF_SIZE] = {NULL}; 
- 	char t_msg[BUF_SIZE] = {NULL}; 
-	char last_msg[BUF_SIZE] = {NULL}; 
- 	char t_name_msg[BUF_SIZE] = {NULL}; 
+	int fEnd = 0;
+	char name_msg[NAME_SIZE+BUF_SIZE] = {NULL};
+	char t_msg[BUF_SIZE] = {NULL};
+	char last_msg[BUF_SIZE] = {NULL};
+	char t_name_msg[BUF_SIZE] = {NULL};
 	char noUse[BUF_SIZE] = {NULL};
- 	const char enter[BUF_SIZE] = {"\n"}; 
-  
-	while(1)  
- 	{ 
- 		if(wOk == 0) { 
- 			sleep(1); 
- 		} 
- 		 fgets(msg, BUF_SIZE, stdin); 
- 		  
- 		if(!strcmp(msg, "/menu\n")) { // 메뉴 
- 			 
- 			printf("\n"); 
- 			printf("[MENU]\n\n"); 
- 			printf("1. /menu -> 메뉴를 출력합니다. \n"); 
- 			printf("2. /whisper -> 원하는 사용자에게 귓속말을 보냅니다.\n"); 
-			printf("3. /sendfile -> 1:1로 파일을 전송합니다. \n");
-			printf("4. /sendfile all -> 1:N으로 파일을 전송합니다. \n");
-			printf("5. /exit -> 채팅 프로그램을 종료합니다. \n");
- 			printf("\n[END MENU] \n\n"); 
- 
- 
- 		}
+	const char enter[BUF_SIZE] = {"\n"};
+	// 혹시 모르니 const char whisper[BUF_SIZE] = {"/whisper\n"};
+	int where=0;
 
+	
+	while(1) 
+	{
+		if(wOk == 0) {
+			sleep(1);
+		}
+
+		fgets(msg, BUF_SIZE, stdin);
+		
+		
+
+		if(!strcmp(msg,"/exit\n")) // 종료시
+		{
+                        write(sock, "exit : cl->sr", BUF_SIZE); // 종료메세지를 보낸다.
+			write(sock, name, NAME_SIZE);
+			close(sock); // 소켓을 닫는다.
+			exit(0); // 종료
+		}
 		else if(!strcmp(msg, "/sendfile\n")) // 파일전송
 		{
 			char location[BUF_SIZE];
@@ -239,93 +239,116 @@
 			printf("파일 전송이 완료되었습니다.n");		
 		} 
 
-  
- 		else if(!strcmp(msg, "/whisper\n")) { // 귓속말 기능 
- 			char who[NAME_SIZE]; 
- 			char wmsg[BUF_SIZE] = {NULL}; 
- 
- 
- 			 
- 			printf("<귓속말> (유저이름) (메시지) : "); 
- 			scanf("%s %[^\n]", who, wmsg); 
- 
- 
- 			write(sock, "whisper : cl->sr", BUF_SIZE); 
- 			// 서버에 귓속말사용 신호를 보낸다.		 
- 
- 
- 			write(sock, who, NAME_SIZE); 
- 			// 사용자 아이디를 보낸다.			 
- 
- 
- 			strcpy(t_msg, "\n"); 
- 			sprintf(t_name_msg,"[(귓속말)%s] %s", name, t_msg); // 이름 , 내 메시지 연결 
- 			sprintf(name_msg,"[(귓속말)%s] %s", name, wmsg); // 이름 , 보내는 사람 id 연결 
- 
- 
- 			name_msg[strlen(name_msg)] = '\n'; 
- 
- 
- 			if(strcmp(name_msg, t_name_msg) != 0)  
- 			   write(sock, name_msg, BUF_SIZE); 
- 			// 아무것도 입력받지 않았을때는 출력 X 
- 			// 메시지 보내기 
- 
- 
- 		} 
- 		else if(!strcmp(msg,"/exit\n")) // 종료시
-		{
-                        write(sock, "exit : cl->sr", BUF_SIZE); // 종료메세지를 보낸다.
-			write(sock, name, NAME_SIZE);
-			close(sock); // 소켓을 닫는다.
-			exit(0); // 종료
+
+		else if(!strcmp(msg, "/menu\n")) { // 메뉴
+			
+			printf("\n");
+			printf("[MENU]\n\n");
+			printf("1. /menu -> 메뉴를 출력합니다. \n");
+			printf("2. /whisper -> 원하는 사용자에게 귓속말을 보냅니다.\n");
+			printf("3. /sendfile -> 1:1로 파일을 전송합니다. \n");
+			printf("4. /sendfile all -> 1:N으로 파일을 전송합니다. \n");
+			printf("5. /game -> 게임을 시작합니다. \n");
+			printf("6. /exit -> 채팅 프로그램을 종료합니다. \n");
+			printf("\n[END MENU] \n\n");
+
+		} 
+
+		else if(setFName == 1) { // 파일 수신시 파일 이름을 설정할때
+			if(strcmp(msg, enter)) {
+				setFName = 0;
+			}
+
+		} 
+
+		else if(!strcmp(msg, "/whisper\n")) { // 귓속말 기능
+			char who[NAME_SIZE];
+			char wmsg[BUF_SIZE] = {NULL};
+
+			
+			printf("<귓속말> (유저이름) (메시지) : ");
+			scanf("%s %[^\n]", who, wmsg);
+
+			write(sock, "whisper : cl->sr", BUF_SIZE);
+			// 서버에 귓속말사용 신호를 보낸다.		
+
+			write(sock, who, NAME_SIZE);
+			// 사용자 아이디를 보낸다.			
+
+			strcpy(t_msg, "\n");
+			sprintf(t_name_msg,"[(귓속말)%s] %s", name, t_msg); // 이름 , 내 메시지 연결
+			sprintf(name_msg,"[(귓속말)%s] %s", name, wmsg); // 이름 , 보내는 사람 id 연결
+
+			name_msg[strlen(name_msg)] = '\n';
+
+			if(strcmp(name_msg, t_name_msg) != 0) 
+			   write(sock, name_msg, BUF_SIZE);
+			// 아무것도 입력받지 않았을때는 출력 X
+			// 메시지 보내기
+
 		}
- 		else  
- 		{	 
- 			 
- 			strcpy(t_msg, "\n"); 
- 			sprintf(t_name_msg,"[%s] %s", name, t_msg); // 메시지만 출력 
- 			sprintf(name_msg,"[%s] %s", name, msg); // 이름과 메시지 합쳐서 출력 
- 
- 
- 			if(strcmp(name_msg, t_name_msg) != 0)  
- 			{ 
- 				write(sock, name_msg, BUF_SIZE);  
- 				write(sock, msg, BUF_SIZE); 
- 				write(sock, name, NAME_SIZE); 
- 				 
- 			} 
- 			// 아무것도 입력받지 않았을때는 출력 X 
- 			// 메시지 보내기 
- 			 
- 		} 
- 		 
- 	} 
- 	return NULL; 
- } 
- 	 
- void * recv_msg(void * arg)   // read thread main 
- { 
- 	int sock=*((int*)arg); 
- 	char name_msg[BUF_SIZE] = {NULL}; 
- 	const char nocl_msg[BUF_SIZE] = {"[사용자가 없습니다.]"};
+                
+
+		else if(!strcmp(msg, "/game\n")) // 게임시작
+		{
+			
+			// 게임시작 신호를 서버쪽에 보낸다.
+			char game_text[BUF_SIZE];
+			printf("문자열을 입력하시오 : ");
+			scanf("%s", game_text);	
+			write(sock, "game : cl->sr", BUF_SIZE);
+			write(sock, game_text, BUF_SIZE);	
+					
+		}
+                 
+
+		else 
+		{	
+
+			
+			strcpy(t_msg, "\n");
+			sprintf(t_name_msg,"[%s] %s", name, t_msg); // 메시지만 출력
+			sprintf(name_msg,"[%s] %s", name, msg); // 이름과 메시지 합쳐서 출력
+
+			if(strcmp(name_msg, t_name_msg) != 0) 
+			{
+				write(sock, name_msg, BUF_SIZE); 
+				write(sock, msg, BUF_SIZE);
+				write(sock, name, NAME_SIZE);
+				
+			}
+			// 아무것도 입력받지 않았을때는 출력 X
+			// 메시지 보내기
+			
+		}
+		
+	}
+	return NULL;
+}
+	
+void * recv_msg(void * arg)   // read thread main
+{
+	int sock=*((int*)arg);
+	char name_msg[BUF_SIZE] = {NULL};
 	char file_msg[BUF_SIZE] = {NULL};
 	const char signal[BUF_SIZE] = {"file : sr->cl"};
-	const char end_msg[BUF_SIZE] = {"FileEnd_sr->cl"}; 
- 	const char noConnect[BUF_SIZE] = {"사용자가 너무 많습니다"}; 
+	const char end_msg[BUF_SIZE] = {"FileEnd_sr->cl"};
+	const char nocl_msg[BUF_SIZE] = {"[사용자가 없습니다.]"};
 	const char yescl_msg[BUF_SIZE] = {"[파일 전송을 진행합니다.]"};
- 	int str_len = 0; 
- 	int file_size = 0;
- 
- 	while(1) 
- 	{ 
- 		str_len=read(sock, name_msg, BUF_SIZE); // str_len에 이름과 메시지 저장 
- 
- 
- 		if(!strcmp(name_msg, signal)) { 
- 			 
- 			setFName = 1; 
- 			wOk = 0;  
+	const char noConnect[BUF_SIZE] = {"사용자가 너무 많습니다"};
+	const char game[BUF_SIZE] = {"game : sr->cl"};
+	int str_len = 0;
+	int file_size = 0;
+
+	while(1)
+	{
+		str_len=read(sock, name_msg, BUF_SIZE); // str_len에 이름과 메시지 저장
+
+		if(!strcmp(name_msg, signal)) {
+			
+			setFName = 1;
+			wOk = 0; 
+
 			printf("파일전송을 요청합니다 ");
 
 			read(sock, &file_size, sizeof(int));
@@ -357,36 +380,32 @@
 			
 			printf("파일 전송이 완료 되었습니다. \n");
 			// send_msg 쓰레드의 활동을 재개한다.
-			
- 			 
- 		} 
- 		else if(strcmp(name_msg, yescl_msg) == 0) { 
- 
- 
- 			cli_exist = EXIST; 
- 
- 
- 		} 
- 		else if(strcmp(name_msg, nocl_msg) == 0) { 
- 
- 
- 			cli_exist = NOTEXIST;  
- 		} 
- 		else if(!strcmp(name_msg, noConnect)) { 
- 			printf("사용자가 너무 많습니다.\n"); 
- 			exit(0); 
- 		} 
- 		else { 
- 			fputs(name_msg, stdout); 
- 		} 
- 	} 
- 	return NULL; 
- } 
- 	 
- void error_handling(char *msg) 
- { 
- 	fputs(msg, stderr); 
- 	fputc('\n', stderr); 
-	exit(1); 
- } 
 
+
+		}
+		else if(strcmp(name_msg, yescl_msg) == 0) {
+
+			cli_exist = EXIST;
+
+		}
+		else if(strcmp(name_msg, nocl_msg) == 0) {
+
+			cli_exist = NOTEXIST; 
+		}
+		else if(!strcmp(name_msg, noConnect)) {
+			printf("사용자가 너무 많습니다.\n");
+			exit(0);
+		}
+		else {
+			fputs(name_msg, stdout);
+		}
+	}
+	return NULL;
+}
+	
+void error_handling(char *msg)
+{
+	fputs(msg, stderr);
+	fputc('\n', stderr);
+	exit(1);
+}
