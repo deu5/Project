@@ -23,6 +23,7 @@ int setFName = 0;
 int wOk = 1;
 	
 
+
 //pthread_mutex_t mutx;
 
 
