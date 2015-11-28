@@ -93,15 +93,46 @@ void *send_msg(void * arg)
 
 		fgets(msg, BUF_SIZE, stdin);
 		
-		
+		if(!strcmp(msg, "/menu\n")) { // 메뉴
+			
+			printf("\n");
+			printf("[MENU]\n\n");
+			printf("1. /menu -> 메뉴를 출력합니다. \n");
+			printf("2. /whisper -> 원하는 사용자에게 귓속말을 보냅니다.\n");
+			printf("3. /sendfile -> 1:1로 파일을 전송합니다. \n");
+			printf("4. /sendfile all -> 1:N으로 파일을 전송합니다. \n");
+			printf("5. /game -> 게임을 시작합니다. \n");
+			printf("6. /exit -> 채팅 프로그램을 종료합니다. \n");
+			printf("\n[END MENU] \n\n");
 
-		if(!strcmp(msg,"/exit\n")) // 종료시
-		{
-                        write(sock, "exit : cl->sr", BUF_SIZE); // 종료메세지를 보낸다.
-			write(sock, name, NAME_SIZE);
-			close(sock); // 소켓을 닫는다.
-			exit(0); // 종료
+		} 
+
+		else if(!strcmp(msg, "/whisper\n")) { // 귓속말 기능
+			char who[NAME_SIZE];
+			char wmsg[BUF_SIZE] = {NULL};
+
+			
+			printf("<귓속말> (유저이름) (메시지) : ");
+			scanf("%s %[^\n]", who, wmsg);
+
+			write(sock, "whisper : cl->sr", BUF_SIZE);
+			// 서버에 귓속말사용 신호를 보낸다.		
+
+			write(sock, who, NAME_SIZE);
+			// 사용자 아이디를 보낸다.			
+
+			strcpy(t_msg, "\n");
+			sprintf(t_name_msg,"[(귓속말)%s] %s", name, t_msg); // 이름 , 내 메시지 연결
+			sprintf(name_msg,"[(귓속말)%s] %s", name, wmsg); // 이름 , 보내는 사람 id 연결
+
+			name_msg[strlen(name_msg)] = '\n';
+
+			if(strcmp(name_msg, t_name_msg) != 0) 
+			   write(sock, name_msg, BUF_SIZE);
+			// 아무것도 입력받지 않았을때는 출력 X
+			// 메시지 보내기
 		}
+		
 		else if(!strcmp(msg, "/sendfile\n")) // 파일전송
 		{
 			char location[BUF_SIZE];
@@ -240,21 +271,6 @@ void *send_msg(void * arg)
 			printf("파일 전송이 완료되었습니다.n");		
 		} 
 
-
-		else if(!strcmp(msg, "/menu\n")) { // 메뉴
-			
-			printf("\n");
-			printf("[MENU]\n\n");
-			printf("1. /menu -> 메뉴를 출력합니다. \n");
-			printf("2. /whisper -> 원하는 사용자에게 귓속말을 보냅니다.\n");
-			printf("3. /sendfile -> 1:1로 파일을 전송합니다. \n");
-			printf("4. /sendfile all -> 1:N으로 파일을 전송합니다. \n");
-			printf("5. /game -> 게임을 시작합니다. \n");
-			printf("6. /exit -> 채팅 프로그램을 종료합니다. \n");
-			printf("\n[END MENU] \n\n");
-
-		} 
-
 		else if(setFName == 1) { // 파일 수신시 파일 이름을 설정할때
 			if(strcmp(msg, enter)) {
 				setFName = 0;
@@ -262,65 +278,38 @@ void *send_msg(void * arg)
 
 		} 
 
-		else if(!strcmp(msg, "/whisper\n")) { // 귓속말 기능
-			char who[NAME_SIZE];
-			char wmsg[BUF_SIZE] = {NULL};
-
-			
-			printf("<귓속말> (유저이름) (메시지) : ");
-			scanf("%s %[^\n]", who, wmsg);
-
-			write(sock, "whisper : cl->sr", BUF_SIZE);
-			// 서버에 귓속말사용 신호를 보낸다.		
-
-			write(sock, who, NAME_SIZE);
-			// 사용자 아이디를 보낸다.			
-
-			strcpy(t_msg, "\n");
-			sprintf(t_name_msg,"[(귓속말)%s] %s", name, t_msg); // 이름 , 내 메시지 연결
-			sprintf(name_msg,"[(귓속말)%s] %s", name, wmsg); // 이름 , 보내는 사람 id 연결
-
-			name_msg[strlen(name_msg)] = '\n';
-
-			if(strcmp(name_msg, t_name_msg) != 0) 
-			   write(sock, name_msg, BUF_SIZE);
-			// 아무것도 입력받지 않았을때는 출력 X
-			// 메시지 보내기
-
-		}
-                
-
 		else if(!strcmp(msg, "/game\n")) // 게임시작
 		{
-			
 			// 게임시작 신호를 서버쪽에 보낸다.
 			char game_text[BUF_SIZE];
 			printf("문자열을 입력하시오 : ");
 			scanf("%s", game_text);	
 			write(sock, "game : cl->sr", BUF_SIZE);
 			write(sock, game_text, BUF_SIZE);	
-					
 		}
-                 
+		
+                else if(!strcmp(msg,"/exit\n")) // 종료시
+		{
+                        write(sock, "exit : cl->sr", BUF_SIZE); // 종료메세지를 보낸다.
+			write(sock, name, NAME_SIZE);
+			close(sock); // 소켓을 닫는다.
+			exit(0); // 종료
+		}
 
 		else 
 		{	
-
-			
 			strcpy(t_msg, "\n");
 			sprintf(t_name_msg,"[%s] %s", name, t_msg); // 메시지만 출력
 			sprintf(name_msg,"[%s] %s", name, msg); // 이름과 메시지 합쳐서 출력
 
 			if(strcmp(name_msg, t_name_msg) != 0) 
 			{
-				write(sock, name_msg, BUF_SIZE); 
-				write(sock, msg, BUF_SIZE);
-				write(sock, name, NAME_SIZE);
-				
+				write(sock, name_msg, BUF_SIZE); //이름+메시지
+				write(sock, msg, BUF_SIZE); // 메시지만
+				write(sock, name, NAME_SIZE); //이름만
 			}
 			// 아무것도 입력받지 않았을때는 출력 X
 			// 메시지 보내기
-			
 		}
 		
 	}
