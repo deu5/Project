@@ -95,6 +95,7 @@
  			printf("2. /whisper -> 원하는 사용자에게 귓속말을 보냅니다.\n"); 
 			printf("3. /sendfile -> 1:1로 파일을 전송합니다. \n");
 			printf("4. /sendfile all -> 1:N으로 파일을 전송합니다. \n");
+			printf("5. /exit -> 채팅 프로그램을 종료합니다. \n");
  			printf("\n[END MENU] \n\n"); 
  
  
@@ -272,6 +273,13 @@
  
  
  		} 
+ 		else if(!strcmp(msg,"/exit\n")) // 종료시
+		{
+                        write(sock, "exit : cl->sr", BUF_SIZE); // 종료메세지를 보낸다.
+			write(sock, name, NAME_SIZE);
+			close(sock); // 소켓을 닫는다.
+			exit(0); // 종료
+		}
  		else  
  		{	 
  			 
