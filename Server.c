@@ -288,6 +288,17 @@ void * handle_clnt(void * arg)
 
                 }
 
+			else if (!strcmp(msg, exit)) // 클라이언트가 접속을 종료했을 때
+			{
+			read(client_sock, msg, BUF_SIZE);
+ 			pthread_mutex_lock(&mutx);
+                        char msg_exit[BUF_SIZE]="";
+			sprintf(msg_exit,"%s 나감\n", msg, msg_exit);
+			pthread_mutex_unlock(&mutx);
+                        send_msg(msg_exit, str_len);
+
+			} 
+		
                 else
                 {			
 			send_msg(msg, str_len); // 메세지 전송 (이름+메세지)
