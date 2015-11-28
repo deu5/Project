@@ -69,18 +69,17 @@
  void *send_msg(void * arg)  
  { 
  	int sock=*((int*)arg); 
-	int i=0;
 	int Flength = 0;
+	int i=0;
 	int file_size = 0;
 	int fEnd = 0; 
  	char name_msg[NAME_SIZE+BUF_SIZE] = {NULL}; 
  	char t_msg[BUF_SIZE] = {NULL}; 
 	char last_msg[BUF_SIZE] = {NULL}; 
  	char t_name_msg[BUF_SIZE] = {NULL}; 
+	char noUse[BUF_SIZE] = {NULL};
  	const char enter[BUF_SIZE] = {"\n"}; 
- 	char noUse[BUF_SIZE] = {NULL};
- 
- 	 
+  
 	while(1)  
  	{ 
  		if(wOk == 0) { 
@@ -94,6 +93,8 @@
  			printf("[MENU]\n\n"); 
  			printf("1. /menu -> 메뉴를 출력합니다. \n"); 
  			printf("2. /whisper -> 원하는 사용자에게 귓속말을 보냅니다.\n"); 
+			printf("3. /sendfile -> 1:1로 파일을 전송합니다. \n");
+			printf("4. /sendfile all -> 1:N으로 파일을 전송합니다. \n");
  			printf("\n[END MENU] \n\n"); 
  
  
@@ -179,6 +180,64 @@
 			cli_exist = NOTSET;
 				
 		}
+		else if(!strcmp(msg, "/sendfile all\n")) { // 파일전송 1:N
+
+			char location[BUF_SIZE];
+			FILE *fp;
+			FILE *size;
+
+			printf("파일 위치를 입력하시오 : ");
+			scanf("%s", location);
+
+			size = fopen(location, "rb"); // 경로값 size에 저장
+			if(size == NULL) {
+				printf("파일이 존재하지 않습니다. \n");
+				continue;
+			}
+			// 보낼 파일이 유효한지를 확인한다.
+
+			write(sock, "file : cl->sr_all", BUF_SIZE);
+			// 파일을 보낸다는 신호를 서버에 보낸다.
+
+			while(1) { // 버퍼값을 불러온다
+				fEnd = fread(noUse, 1 , BUF_SIZE, size);
+				file_size += fEnd;
+
+				if(fEnd != BUF_SIZE)
+					break;
+			}
+			fclose(size);
+
+			printf("파일 전송을 시작합니다 \n(File Size : %d Byte)\n", file_size); 
+			write(sock, &file_size, sizeof(int)); // 파일 크기 정보를 보낸다
+			file_size = 0;
+			
+			fp = fopen(location, "rb");
+			
+
+			while(1) {
+				
+				Flength = fread(t_msg, 1 , BUF_SIZE, fp);
+
+				if(Flength != BUF_SIZE) {
+					for(i=0; i<Flength; i++) {
+						last_msg[i] = t_msg[i];
+					} 
+					//fread를 사용해서 이전 데이터와 MERGE상태가 될수있으므로 방지하였음.
+
+					write(sock, last_msg, BUF_SIZE); // 소켓에 클라이언트의 메시지를 저장한다.
+					write(sock, "FileEnd_cl->sr", BUF_SIZE); // 서버로 파일의 끝을 알린다.	
+					break;
+				}
+				write(sock, t_msg, BUF_SIZE); 
+
+			}
+			// 서버에 파일의 내용을 보낸다.		
+
+			fclose(fp);
+			printf("파일 전송이 완료되었습니다.n");		
+		} 
+
   
  		else if(!strcmp(msg, "/whisper\n")) { // 귓속말 기능 
  			char who[NAME_SIZE]; 
@@ -248,7 +307,7 @@
  	const char noConnect[BUF_SIZE] = {"사용자가 너무 많습니다"}; 
 	const char yescl_msg[BUF_SIZE] = {"[파일 전송을 진행합니다.]"};
  	int str_len = 0; 
- 
+ 	int file_size = 0;
  
  	while(1) 
  	{ 
@@ -259,6 +318,38 @@
  			 
  			setFName = 1; 
  			wOk = 0;  
+			printf("파일전송을 요청합니다 ");
+
+			read(sock, &file_size, sizeof(int));
+			printf("(File size : %d Byte)\n [Enter키를 눌러주세요]", file_size);
+			//파일 사이즈 받아 출력하기.
+
+			printf("파일명을 입력하세요 : ");
+			
+			wOk = 1; 
+			while(setFName == 1) {
+				sleep(1);
+			}
+
+			msg[strlen(msg)-1] = '\0';
+			
+			FILE *fp;
+			fp = fopen(msg, "wb"); 
+		
+			while(1)
+			{		
+				read(sock, file_msg, BUF_SIZE);
+				if(!strcmp(file_msg, end_msg)) 
+				   break;
+
+				fwrite(file_msg, 1, BUF_SIZE, fp);
+			}
+
+			fclose(fp);
+			
+			printf("파일 전송이 완료 되었습니다. \n");
+			// send_msg 쓰레드의 활동을 재개한다.
+			
  			 
  		} 
  		else if(strcmp(name_msg, yescl_msg) == 0) { 
@@ -290,3 +381,4 @@
  	fputc('\n', stderr); 
 	exit(1); 
  } 
+
