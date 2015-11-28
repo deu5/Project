@@ -120,9 +120,12 @@ void * handle_clnt(void * arg)
 	
 
 	const char single_file[BUF_SIZE] = {"file : cl->sr"}; // 1:1 파일전송
-	const char sig_whisper[BUF_SIZE] = {"whisper : cl->sr"}; // 귓속말    
+	const char single_file_all[BUF_SIZE] = {"file : cl->sr_all"}; // 1:N 파일전송
+	const char Fmsg_end[BUF_SIZE] = {"FileEnd_cl->sr"}; // 파일의 끝
+	const char sig_whisper[BUF_SIZE] = {"whisper : cl->sr"}; // 귓속말 
+	const char exit[BUF_SIZE] = { "exit : cl->sr" }; // 클라이언트 종료 확인 메세지   
         char msg[BUF_SIZE] = {NULL}; // 메세지 변수
-       
+      	char file_msg[BUF_SIZE] = {NULL}; // 파일메세지 변수
 	
         while((str_len=read(client_sock, msg, BUF_SIZE))!=0)
         // read ( 파일디스크립터,읽어들일 버퍼,버퍼크기);
@@ -200,7 +203,49 @@ void * handle_clnt(void * arg)
 			// 파일 전송 완료 메세지 출력
                 }  
                 
+		       else if(!strcmp(msg, single_file_all)) { // 1:N 파일 전송 일때
 
+                        pthread_mutex_lock(&mutx); 
+                        for(i=0; i<client_count; i++) {
+                                if(client_sock == client_socks[i])
+                                        continue;
+                                write(client_socks[i], "file : sr->cl", BUF_SIZE);                        
+                        }// 데이터를 보낸다는 신호를 보낸다
+
+                        read(client_sock, &file_size, sizeof(int));
+			// 파일의 정보를 읽어온다.
+                        printf("File size %d Byte\n", file_size);
+			// 파일의 정보 출력
+
+                        for(i=0; i<client_count; i++) {
+                                if(client_sock == client_socks[i])
+                                        continue;
+                                write(client_socks[i], &file_size, sizeof(int));
+                        }
+                        // 파일 크기 정보를 보낸다
+
+                        while(1) {
+                                read(client_sock, file_msg, BUF_SIZE);
+                                if(!strcmp(file_msg, Fmsg_end))
+                                        break;
+
+                                for(i=0; i<client_count; i++) {
+                                        if(client_sock == client_socks[i])
+                                                continue;
+                                        write(client_socks[i], file_msg, BUF_SIZE);
+                                }
+                        } // 파일을 읽어오고 파일을 클라이언트에게 전송한다.
+
+                        for(i=0; i<client_count; i++) {
+                                if(client_sock == client_socks[i])
+                                        continue;
+                                write(client_socks[i], "FileEnd_sr->cl", BUF_SIZE);
+                        } // 파일의 끝을 알려준다.
+
+                        pthread_mutex_unlock(&mutx);
+			// 다른 쓰레드 접근 제한 해제 
+                        printf("파일 전송 완료\n");
+                }
 
 
 			else if(!strcmp(msg, sig_whisper)) { // 귓속말 일때
