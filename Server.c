@@ -138,7 +138,52 @@ void * handle_clnt(void * arg)
         // read ( 파일디스크립터,읽어들일 버퍼,버퍼크기);
         // client_sock 읽는다.
         {	
-                if(!strcmp(msg, single_file)) // 1:1 파일전송 일때
+        	if(!strcmp(msg, sig_whisper)) { // 귓속말 일때
+                        int j=0;
+                        int noCli = 0;
+                        int mGo = 0;
+                        char tmpName[NAME_SIZE]= {NULL};
+                        char msg[NAME_SIZE]= {NULL};
+
+                        read(client_sock, tmpName, NAME_SIZE);
+			// 귓속말 대상의 이름을 읽어온다.
+
+                        pthread_mutex_lock(&mutx);
+			// 다른 쓰레드 접근 제한
+
+                        for(j=0; j<client_count; j++) {
+                                if(!strcmp(tmpName, client_names[j]) ) {
+                                        noCli = 0;
+                                        mGo = j; // 보낼 소켓 번호를 저장
+                                        break;
+                                }
+                                else if(j == client_count - 1) {
+                                        noCli = 1; // 그런 사용자가 없을 때 표시
+                                        break;
+                                }
+                        }
+
+                        pthread_mutex_unlock(&mutx);
+			// 다른 쓰레드 접근 제한 해제 
+
+                        read(client_sock, msg, BUF_SIZE);
+			// 귓속말할 메세지를 읽어온다.
+
+                        if(noCli == 1) {
+                                write(client_sock, "귓속말 대상 사용자가 존재하지 않습니다.", BUF_SIZE);
+                        } // 귓속말 대상 사용자가 없을 때
+                        else {                                
+				char whisper_save[BUF_SIZE]="";
+				write(client_socks[j], msg, BUF_SIZE);
+				strcpy(whisper_save,tmpName);
+				strcat(whisper_save,"에게 ");
+				strcat(whisper_save,msg);
+				save_msg(whisper_save);
+                        } // 귓속말 대상 사용자가 존재할 때
+
+                }
+                
+                else if(!strcmp(msg, single_file)) // 1:1 파일전송 일때
                 {
                         int j;
                         int noCli = 0; // 클라이언트 유무 확인 변수
@@ -179,9 +224,6 @@ void * handle_clnt(void * arg)
                         }
                         //해당 사용자가 존재하는지 찾기
 
-
-
-
                         write(client_socks[fileGo], "file : sr->cl", BUF_SIZE);
                         // 데이터를 보낸다는 신호를 보낸다.
 
@@ -192,14 +234,12 @@ void * handle_clnt(void * arg)
                         write(client_socks[fileGo], &file_size, sizeof(int));
                         // 파일 정보를 파일을 받을 클라이언트에게 보낸다.
 
-
                         while(1) {
                                 read(client_sock, file_msg, BUF_SIZE);
                                 if(!strcmp(file_msg, Fmsg_end))
                                 break;
                                 write(client_socks[fileGo], file_msg, BUF_SIZE);
                         } // 파일 전송
-
 
                         write(client_socks[fileGo], "FileEnd_sr->cl", BUF_SIZE);
 			// 파일의 끝을 알려준다.
@@ -209,7 +249,6 @@ void * handle_clnt(void * arg)
                         printf("파일 전송 완료\n");
 			// 파일 전송 완료 메세지 출력
                 }
-
 
                 else if(!strcmp(msg, single_file_all)) { // 1:N 파일 전송 일때
 
@@ -254,53 +293,7 @@ void * handle_clnt(void * arg)
 			// 다른 쓰레드 접근 제한 해제 
                         printf("파일 전송 완료\n");
                 }
-
-                else if(!strcmp(msg, sig_whisper)) { // 귓속말 일때
-                        int j=0;
-                        int noCli = 0;
-                        int mGo = 0;
-                        char tmpName[NAME_SIZE]= {NULL};
-                        char msg[NAME_SIZE]= {NULL};
-
-                        read(client_sock, tmpName, NAME_SIZE);
-			// 귓속말 대상의 이름을 읽어온다.
-
-                        pthread_mutex_lock(&mutx);
-			// 다른 쓰레드 접근 제한
-
-                        for(j=0; j<client_count; j++) {
-                                if(!strcmp(tmpName, client_names[j]) ) {
-                                        noCli = 0;
-                                        mGo = j; // 보낼 소켓 번호를 저장
-                                        break;
-                                }
-                                else if(j == client_count - 1) {
-                                        noCli = 1; // 그런 사용자가 없을 때 표시
-                                        break;
-                                }
-                        }
-
-                        pthread_mutex_unlock(&mutx);
-			// 다른 쓰레드 접근 제한 해제 
-
-                        read(client_sock, msg, BUF_SIZE);
-			// 귓속말할 메세지를 읽어온다.
-
-                        if(noCli == 1) {
-                                write(client_sock, "귓속말 대상 사용자가 존재하지 않습니다.", BUF_SIZE);
-                        } // 귓속말 대상 사용자가 없을 때
-                        else {                                
-				char whisper_save[BUF_SIZE]="";
-				write(client_socks[j], msg, BUF_SIZE);
-				strcpy(whisper_save,tmpName);
-				strcat(whisper_save,"에게 ");
-				strcat(whisper_save,msg);
-				save_msg(whisper_save);
-                        } // 귓속말 대상 사용자가 존재할 때
-
-                }
-
-
+                
 		else if(!strcmp(msg, game)) // 게임 일때
                 {			
 			char game_start[BUF_SIZE]="게임시작\n";
@@ -321,7 +314,6 @@ void * handle_clnt(void * arg)
 			// 게임 텍스트를 클라이언트에게 전송
 						
                 }
-
 
 		else if (!strcmp(msg, exit)) // 클라이언트가 접속을 종료했을 때
 		{
