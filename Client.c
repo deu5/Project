@@ -112,7 +112,7 @@ void *send_msg(void * arg)
 			char wmsg[BUF_SIZE] = {NULL};
 
 			
-			printf("<EX>(유저이름) (메시지) : ");
+			printf("<ex> (유저이름) (메시지) : ");
 			scanf("%s %[^\n]", who, wmsg);
 
 			write(sock, "whisper : cl->sr", BUF_SIZE);
