@@ -57,8 +57,8 @@ int main(int argc, char *argv[])
 	// 이름을 서버로 전송
 
 	printf("\n\n");
-	printf("연결되었습니다.\n");
-	printf("[도움말] -> /menu\n");
+	printf("---------- 서버에 연결되었습니다 ----------\n");
+	printf("---------- [도움말] -> /help ----------\n");
 
 	pthread_create(&send_thread, NULL, send_msg, (void*)&sock); // 쓰레드(send_thread) 생성
 	pthread_create(&receive_thread, NULL, recv_msg, (void*)&sock); // 쓰레드(receive_thread) 생성
