@@ -93,21 +93,21 @@ void *send_msg(void * arg)
 
 		fgets(msg, BUF_SIZE, stdin);
 		
-		if(!strcmp(msg, "/menu\n")) { // 메뉴
+		if(!strcmp(msg, "/help\n")) { // 메뉴
 			
 			printf("\n");
-			printf("[MENU]\n\n");
-			printf("1. /menu -> 메뉴를 출력합니다. \n");
-			printf("2. /whisper -> 원하는 사용자에게 귓속말을 보냅니다.\n");
-			printf("3. /sendfile -> 1:1로 파일을 전송합니다. \n");
-			printf("4. /sendfile all -> 1:N으로 파일을 전송합니다. \n");
-			printf("5. /game -> 게임을 시작합니다. \n");
-			printf("6. /exit -> 채팅 프로그램을 종료합니다. \n");
-			printf("\n[END MENU] \n\n");
+			printf("####################[ MENU ]####################\n\n");
+			printf("1. /help : 메뉴 출력\n");
+			printf("2. /w : 귓속말\n");
+			printf("3. /send -> 1:1 파일전송\n");
+			printf("4. /send all -> 1:N 파일전송\n");
+			printf("5. /game -> 게임\n");
+			printf("6. /exit -> 종료\n");
+			printf("\n##################[ END MENU ]##################\n\n");
 
 		} 
 
-		else if(!strcmp(msg, "/whisper\n")) { // 귓속말 기능
+		else if(!strcmp(msg, "/w\n")) { // 귓속말 기능
 			char who[NAME_SIZE];
 			char wmsg[BUF_SIZE] = {NULL};
 
@@ -133,7 +133,7 @@ void *send_msg(void * arg)
 			// 메시지 보내기
 		}
 		
-		else if(!strcmp(msg, "/sendfile\n")) // 파일전송
+		else if(!strcmp(msg, "/send\n")) // 파일전송
 		{
 			char location[BUF_SIZE];
 			char who[NAME_SIZE];
@@ -213,7 +213,7 @@ void *send_msg(void * arg)
 			cli_exist = NOTSET;
 				
 		}
-		else if(!strcmp(msg, "/sendfile all\n")) { // 파일전송 1:N
+		else if(!strcmp(msg, "/send all\n")) { // 파일전송 1:N
 
 			char location[BUF_SIZE];
 			FILE *fp;
