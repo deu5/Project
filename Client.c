@@ -284,7 +284,7 @@ void *send_msg(void * arg)
 			// 게임시작 신호를 서버쪽에 보낸다.
 			char game_text[BUF_SIZE];
 			printf("문자열을 입력하시오 : ");
-			scanf("%s", game_text);	
+			gets(game_text);	
 			write(sock, "game : cl->sr", BUF_SIZE);
 			write(sock, game_text, BUF_SIZE);
 			printf("\n");	
