@@ -292,7 +292,7 @@ void *send_msg(void * arg)
 
 		else if(!strcmp(msg,"/download\n"))
 		{
-			system("firefox ftp://192.168.0.100");      
+			system("firefox ftp://서버 주소 입력");    //여기에 서버주소 입력해야 ftp로 접속
 		}
 
 		
