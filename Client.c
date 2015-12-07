@@ -102,7 +102,8 @@ void *send_msg(void * arg)
 			printf("3. /send -> 1:1 파일전송\n");
 			printf("4. /send all -> 1:N 파일전송\n");
 			printf("5. /game -> 게임\n");
-			printf("6. /exit -> 종료\n");
+			printf("6. /download -> 대화내용 다운로드\n");
+			printf("7. /exit -> 종료\n");
 			printf("\n##################[ END MENU ]##################\n\n");
 
 		} 
@@ -285,8 +286,15 @@ void *send_msg(void * arg)
 			printf("문자열을 입력하시오 : ");
 			scanf("%s", game_text);	
 			write(sock, "game : cl->sr", BUF_SIZE);
-			write(sock, game_text, BUF_SIZE);	
+			write(sock, game_text, BUF_SIZE);
+			printf("\n");	
 		}
+
+		else if(!strcmp(msg,"/download\n"))
+		{
+			system("firefox ftp://192.168.0.100");      
+		}
+
 		
                 else if(!strcmp(msg,"/exit\n")) // 종료시
 		{
@@ -296,6 +304,7 @@ void *send_msg(void * arg)
 			exit(0); // 종료
 		}
 
+		
 		else 
 		{	
 			strcpy(t_msg, "\n");
@@ -342,7 +351,7 @@ void * recv_msg(void * arg)   // read thread main
 			printf("파일전송을 요청합니다 ");
 
 			read(sock, &file_size, sizeof(int));
-			printf("(File size : %d Byte)\n [Enter키를 눌러주세요]", file_size);
+			printf("(File size : %d Byte) [Enter키를 눌러주세요] \n", file_size);
 			//파일 사이즈 받아 출력하기.
 
 			printf("파일명을 입력하세요 : ");
